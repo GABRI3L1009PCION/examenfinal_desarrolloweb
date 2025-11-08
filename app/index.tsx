@@ -55,34 +55,58 @@ const PALETTE = {
 export default function Index() {
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isDark, setIsDark] = useState(false);
+    const [page, setPage] = useState(1);
 
     const theme = isDark ? PALETTE.dark : PALETTE.light;
     const styles = useMemo(() => createStyles(theme), [theme]);
 
-    const fetchPhotos = async () => {
+    // 🔄 Merge sin duplicados por id
+    const mergeUnique = (curr: Photo[], incoming: Photo[]) => {
+        const map = new Map<string, Photo>();
+        [...curr, ...incoming].forEach((p) => map.set(p.id, p));
+        return Array.from(map.values());
+    };
+
+    // 🔄 Carga (inicial / refresco / load more)
+    const fetchPhotos = async (pageToLoad = 1, append = false) => {
         try {
             setError(null);
-            const res = await axios.get<Photo[]>('https://picsum.photos/v2/list?page=1&limit=30');
-            setPhotos(res.data);
+            if (append) setLoadingMore(true);
+            else if (!refreshing) setLoading(true);
+
+            const res = await axios.get<Photo[]>(
+                `https://picsum.photos/v2/list?page=${pageToLoad}&limit=30`
+            );
+
+            setPhotos((prev) => (append ? mergeUnique(prev, res.data) : res.data));
+            setPage(pageToLoad);
         } catch (e) {
             setError('No se pudieron cargar las imágenes.');
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setRefreshing(false);
         }
     };
 
     useEffect(() => {
-        fetchPhotos();
+        fetchPhotos(1, false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchPhotos();
+        fetchPhotos(1, false);
     }, []);
+
+    const loadMore = () => {
+        if (loadingMore) return;
+        fetchPhotos(page + 1, true);
+    };
 
     const renderItem = ({ item }: { item: Photo }) => {
         const thumbUrl = `https://picsum.photos/id/${item.id}/400/400`;
@@ -96,6 +120,24 @@ export default function Index() {
             </View>
         );
     };
+
+    const Footer = () => (
+        <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+            {loadingMore ? (
+                <ActivityIndicator color={theme.spinner} />
+            ) : (
+                <Pressable
+                    onPress={loadMore}
+                    style={({ pressed }) => [
+                        styles.loadMoreBtn,
+                        pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                    ]}
+                >
+                    <Text style={styles.loadMoreText}>Cargar más</Text>
+                </Pressable>
+            )}
+        </View>
+    );
 
     if (loading) {
         return (
@@ -135,7 +177,17 @@ export default function Index() {
                 numColumns={COLS}
                 columnWrapperStyle={{ gap: GAP, paddingHorizontal: GAP }}
                 contentContainerStyle={{ paddingVertical: GAP }}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.spinner} />}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.spinner}
+                    />
+                }
+                ListFooterComponent={<Footer />}
+            // (Opcional) Auto-cargar al llegar al final:
+            // onEndReached={loadMore}
+            // onEndReachedThreshold={0.5}
             />
         </SafeAreaView>
     );
@@ -207,6 +259,17 @@ const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
         meta: { padding: 10, alignItems: 'center' },
         author: { fontSize: 16, fontWeight: '700', color: t.wine },
         sub: { fontSize: 12, color: t.sub, marginTop: 2 },
+
+        loadMoreBtn: {
+            backgroundColor: t.wine,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 999,
+        },
+        loadMoreText: {
+            color: '#FFF',
+            fontWeight: '700',
+        },
     });
 
 // util para matizar sombra
