@@ -1,6 +1,21 @@
 import axios from 'axios';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Image, RefreshControl, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    RefreshControl,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View
+} from 'react-native';
+
+// 🎨 Paleta de colores
+const COLOR_VINO = '#7B1E3A';
+const COLOR_FONDO = '#F7F3F4';
+const COLOR_TEXTO = '#2C2C2C';
 
 type Photo = {
     id: string;
@@ -8,7 +23,7 @@ type Photo = {
     download_url: string;
 };
 
-// ancho para 2 columnas con paddings
+// 📐 Configuración de diseño (2 columnas)
 const GAP = 12;
 const COLS = 2;
 const SCREEN_W = Dimensions.get('window').width;
@@ -20,6 +35,7 @@ export default function Index() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // 🔄 Obtener fotos desde la API
     const fetchPhotos = async () => {
         try {
             setError(null);
@@ -42,7 +58,7 @@ export default function Index() {
         fetchPhotos();
     }, []);
 
-    // 👇 Aquí está la corrección clave: miniatura optimizada
+    // 🖼️ Miniaturas optimizadas
     const renderItem = ({ item }: { item: Photo }) => {
         const thumbUrl = `https://picsum.photos/id/${item.id}/400/400`;
 
@@ -60,16 +76,21 @@ export default function Index() {
     if (loading) {
         return (
             <SafeAreaView style={styles.center}>
-                <ActivityIndicator size="large" />
-                <Text style={{ marginTop: 8 }}>Cargando galería…</Text>
+                <ActivityIndicator size="large" color={COLOR_VINO} />
+                <Text style={{ marginTop: 8, color: COLOR_TEXTO }}>Cargando galería…</Text>
             </SafeAreaView>
         );
     }
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.title}>Galería de Fotos</Text>
+            {/* 🟥 Encabezado vino tinto */}
+            <View style={styles.header}>
+                <Text style={styles.headerText}>Galería de Fotos</Text>
+            </View>
+
             {error && <Text style={styles.error}>{error}</Text>}
+
             <FlatList
                 data={photos}
                 keyExtractor={(it) => it.id}
@@ -83,28 +104,71 @@ export default function Index() {
     );
 }
 
+// 💅 Estilos vino tinto
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f6f7fb' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginTop: 10 },
+    container: {
+        flex: 1,
+        backgroundColor: COLOR_FONDO
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    header: {
+        backgroundColor: COLOR_VINO,
+        paddingVertical: 14,
+        marginBottom: 6,
+        shadowColor: COLOR_VINO,
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 4,
+    },
+    headerText: {
+        color: '#FFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        letterSpacing: 0.5,
+    },
     error: {
-        backgroundColor: '#ffe5e5',
-        color: '#b00020',
+        backgroundColor: '#F8D7DA',
+        color: COLOR_VINO,
         margin: 12,
         padding: 8,
-        borderRadius: 8,
+        borderRadius: 10,
         textAlign: 'center',
+        borderWidth: 1,
+        borderColor: COLOR_VINO
     },
     card: {
         width: CARD_W,
-        backgroundColor: '#fff',
-        borderRadius: 12,
+        backgroundColor: '#FFF',
+        borderRadius: 16,
         overflow: 'hidden',
         marginBottom: GAP,
-        elevation: 3,
+        shadowColor: COLOR_VINO,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    image: { width: '100%', aspectRatio: 1 },
-    meta: { padding: 10 },
-    author: { fontSize: 16, fontWeight: '700' },
-    sub: { fontSize: 12, color: '#667085', marginTop: 2 },
+    image: {
+        width: '100%',
+        aspectRatio: 1
+    },
+    meta: {
+        padding: 10,
+        alignItems: 'center'
+    },
+    author: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLOR_VINO
+    },
+    sub: {
+        fontSize: 12,
+        color: '#555',
+        marginTop: 2
+    },
 });
