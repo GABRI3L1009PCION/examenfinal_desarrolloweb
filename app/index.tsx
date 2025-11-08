@@ -1,14 +1,16 @@
 import axios from 'axios';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Animated,
     Dimensions,
     FlatList,
-    Image,
+    ImageStyle,
     Pressable,
     RefreshControl,
     SafeAreaView,
     StatusBar,
+    StyleProp,
     StyleSheet,
     Text,
     View,
@@ -52,6 +54,15 @@ const PALETTE = {
     },
 };
 
+// ✅ Imagen con fade-in (recibe style por props)
+function FadeInImage({ uri, style }: { uri: string; style?: StyleProp<ImageStyle> }) {
+    const opacity = useRef(new Animated.Value(0)).current;
+    const onLoad = () =>
+        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+
+    return <Animated.Image source={{ uri }} onLoad={onLoad} style={[style, { opacity }]} />;
+}
+
 export default function Index() {
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,14 +75,12 @@ export default function Index() {
     const theme = isDark ? PALETTE.dark : PALETTE.light;
     const styles = useMemo(() => createStyles(theme), [theme]);
 
-    // 🔄 Merge sin duplicados por id
     const mergeUnique = (curr: Photo[], incoming: Photo[]) => {
         const map = new Map<string, Photo>();
         [...curr, ...incoming].forEach((p) => map.set(p.id, p));
         return Array.from(map.values());
     };
 
-    // 🔄 Carga (inicial / refresco / load more)
     const fetchPhotos = async (pageToLoad = 1, append = false) => {
         try {
             setError(null);
@@ -95,7 +104,6 @@ export default function Index() {
 
     useEffect(() => {
         fetchPhotos(1, false);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onRefresh = useCallback(() => {
@@ -112,7 +120,8 @@ export default function Index() {
         const thumbUrl = `https://picsum.photos/id/${item.id}/400/400`;
         return (
             <View style={styles.card}>
-                <Image source={{ uri: thumbUrl }} style={styles.image} />
+                {/* 👇 ahora le pasamos el style desde aquí */}
+                <FadeInImage uri={thumbUrl} style={styles.image} />
                 <View style={styles.meta}>
                     <Text style={styles.author}>{item.author}</Text>
                     <Text style={styles.sub}>ID: {item.id}</Text>
@@ -153,10 +162,8 @@ export default function Index() {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle={theme.barStyle} />
 
-            {/* Header con toggle Día/Noche */}
             <View style={styles.header}>
                 <Text style={styles.headerText}>Galería de Fotos</Text>
-
                 <Pressable
                     onPress={() => setIsDark((v) => !v)}
                     style={({ pressed }) => [
@@ -168,6 +175,9 @@ export default function Index() {
                 </Pressable>
             </View>
 
+            {/* 🧮 Contador */}
+            <Text style={styles.counter}>Mostrando {photos.length} fotos</Text>
+
             {error && <Text style={styles.error}>{error}</Text>}
 
             <FlatList
@@ -178,14 +188,9 @@ export default function Index() {
                 columnWrapperStyle={{ gap: GAP, paddingHorizontal: GAP }}
                 contentContainerStyle={{ paddingVertical: GAP }}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={theme.spinner}
-                    />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.spinner} />
                 }
                 ListFooterComponent={<Footer />}
-            // (Opcional) Auto-cargar al llegar al final:
             // onEndReached={loadMore}
             // onEndReachedThreshold={0.5}
             />
@@ -193,7 +198,6 @@ export default function Index() {
     );
 }
 
-// 🧵 estilos dependientes del tema
 const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
     StyleSheet.create({
         container: { flex: 1, backgroundColor: t.bg },
@@ -213,12 +217,7 @@ const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
             shadowOffset: { width: 0, height: 2 },
             elevation: 4,
         },
-        headerText: {
-            color: '#FFF',
-            fontSize: 20,
-            fontWeight: 'bold',
-            letterSpacing: 0.5,
-        },
+        headerText: { color: '#FFF', fontSize: 20, fontWeight: 'bold', letterSpacing: 0.5 },
         toggleBtn: {
             backgroundColor: '#FFFFFF20',
             borderWidth: 1,
@@ -227,9 +226,14 @@ const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
             paddingVertical: 6,
             borderRadius: 999,
         },
-        toggleText: {
-            color: '#FFF',
-            fontWeight: '700',
+        toggleText: { color: '#FFF', fontWeight: '700' },
+
+        counter: {
+            textAlign: 'center',
+            color: t.text,
+            marginBottom: 4,
+            fontSize: 12,
+            opacity: 0.8,
         },
 
         error: {
@@ -251,7 +255,7 @@ const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
             marginBottom: GAP,
             shadowColor: t.wine,
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDarkLike(t) ? 0.3 : 0.18,
+            shadowOpacity: t === PALETTE.dark ? 0.3 : 0.18,
             shadowRadius: 6,
             elevation: 4,
         },
@@ -266,13 +270,5 @@ const createStyles = (t: typeof PALETTE.light | typeof PALETTE.dark) =>
             paddingVertical: 10,
             borderRadius: 999,
         },
-        loadMoreText: {
-            color: '#FFF',
-            fontWeight: '700',
-        },
+        loadMoreText: { color: '#FFF', fontWeight: '700' },
     });
-
-// util para matizar sombra
-function isDarkLike(theme: typeof PALETTE.light | typeof PALETTE.dark) {
-    return theme === PALETTE.dark;
-}
